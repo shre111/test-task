@@ -26,6 +26,7 @@ export default function App() {
             <Route path="/builder" element={<Builder />} />
             <Route path="/assessments" element={<Assessments />} />
             <Route path="/launch-pad" element={<LaunchPad />} />
+            <Route path="/launch-pad/:id" element={<LaunchPad />} />
             <Route path="/reports" element={<Reports />} />
           </Route>
           <Route path="*" element={<Navigate to="/builder" replace />} />
