@@ -1,7 +1,26 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../api/client";
 import CategoryItem from "../components/CategoryItem";
 import QuestionSettingsModal from "../components/QuestionSettingsModal";
 import LoadCategoriesModal from "../components/LoadCategoriesModal";
+import SaveAssessmentModal from "../components/SaveAssessmentModal";
+
+const toPayloadCategories = (categories) =>
+  categories.map((c) => ({
+    name: c.name,
+    factors: c.factors.map((f) => ({
+      name: f.name,
+      questions: f.questions.map((q) => ({
+        text: q.text,
+        type: q.type,
+        options:
+          q.type === "multiple_choice"
+            ? q.options.map((o) => o.trim()).filter(Boolean)
+            : [],
+      })),
+    })),
+  }));
 
 const normalizeCategory = (c) => ({
   id: crypto.randomUUID(),
@@ -19,9 +38,13 @@ const normalizeCategory = (c) => ({
 });
 
 export default function Builder() {
+  const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
   const [settingsTarget, setSettingsTarget] = useState(null);
   const [showLoad, setShowLoad] = useState(false);
+  const [showSave, setShowSave] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const mapCategory = (catId, fn) =>
     setCategories((prev) => prev.map((c) => (c.id === catId ? fn(c) : c)));
@@ -86,6 +109,28 @@ export default function Builder() {
   const appendLoaded = (dbCategories) =>
     setCategories((prev) => [...prev, ...dbCategories.map(normalizeCategory)]);
 
+  const hasQuestions = categories.some((c) =>
+    c.factors.some((f) => f.questions.length > 0)
+  );
+
+  const saveAssessment = async (title) => {
+    setSaving(true);
+    setSaveError("");
+    try {
+      await api.post("/assessments", {
+        title,
+        categories: toPayloadCategories(categories),
+      });
+      setCategories([]);
+      setShowSave(false);
+      navigate("/assessments");
+    } catch (err) {
+      setSaveError(err.response?.data?.message || "Failed to save assessment");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -99,12 +144,25 @@ export default function Builder() {
           </button>
           <button
             onClick={addCategory}
-            className="px-4 py-2 rounded bg-slate-800 text-white text-sm hover:bg-slate-700"
+            className="px-4 py-2 rounded border border-slate-300 text-slate-700 text-sm hover:bg-slate-100"
           >
             + Add Category
           </button>
+          <button
+            onClick={() => setShowSave(true)}
+            disabled={!hasQuestions}
+            className="px-4 py-2 rounded bg-slate-800 text-white text-sm hover:bg-slate-700 disabled:opacity-50"
+          >
+            Save Assessment
+          </button>
         </div>
       </div>
+
+      {saveError && (
+        <p className="mb-4 text-sm text-red-600 bg-red-50 px-3 py-2 rounded">
+          {saveError}
+        </p>
+      )}
 
       {categories.length === 0 ? (
         <div className="text-center text-slate-400 border border-dashed border-slate-300 rounded-lg py-16">
@@ -148,6 +206,14 @@ export default function Builder() {
         <LoadCategoriesModal
           onClose={() => setShowLoad(false)}
           onLoad={appendLoaded}
+        />
+      )}
+
+      {showSave && (
+        <SaveAssessmentModal
+          onClose={() => setShowSave(false)}
+          onSave={saveAssessment}
+          saving={saving}
         />
       )}
     </div>

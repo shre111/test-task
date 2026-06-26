@@ -1,4 +1,17 @@
 import Assessment from "../models/Assessment.js";
+import Category from "../models/Category.js";
+
+const saveCategoriesForReuse = async (userId, categories) => {
+  await Promise.all(
+    categories.map((category) =>
+      Category.findOneAndUpdate(
+        { user: userId, name: category.name },
+        { user: userId, name: category.name, factors: category.factors },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      )
+    )
+  );
+};
 
 export const createAssessment = async (req, res) => {
   try {
@@ -16,6 +29,7 @@ export const createAssessment = async (req, res) => {
       title,
       categories,
     });
+    await saveCategoriesForReuse(req.user._id, categories);
     res.status(201).json(assessment);
   } catch (err) {
     res.status(500).json({ message: err.message });
