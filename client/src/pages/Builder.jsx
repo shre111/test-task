@@ -1,10 +1,27 @@
 import { useState } from "react";
 import CategoryItem from "../components/CategoryItem";
 import QuestionSettingsModal from "../components/QuestionSettingsModal";
+import LoadCategoriesModal from "../components/LoadCategoriesModal";
+
+const normalizeCategory = (c) => ({
+  id: crypto.randomUUID(),
+  name: c.name,
+  factors: c.factors.map((f) => ({
+    id: crypto.randomUUID(),
+    name: f.name,
+    questions: f.questions.map((q) => ({
+      id: crypto.randomUUID(),
+      text: q.text,
+      type: q.type,
+      options: q.options || [],
+    })),
+  })),
+});
 
 export default function Builder() {
   const [categories, setCategories] = useState([]);
   const [settingsTarget, setSettingsTarget] = useState(null);
+  const [showLoad, setShowLoad] = useState(false);
 
   const mapCategory = (catId, fn) =>
     setCategories((prev) => prev.map((c) => (c.id === catId ? fn(c) : c)));
@@ -66,16 +83,27 @@ export default function Builder() {
       questions: f.questions.filter((q) => q.id !== qId),
     }));
 
+  const appendLoaded = (dbCategories) =>
+    setCategories((prev) => [...prev, ...dbCategories.map(normalizeCategory)]);
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-semibold text-slate-800">Builder</h1>
-        <button
-          onClick={addCategory}
-          className="px-4 py-2 rounded bg-slate-800 text-white text-sm hover:bg-slate-700"
-        >
-          + Add Category
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowLoad(true)}
+            className="px-4 py-2 rounded border border-slate-300 text-slate-700 text-sm hover:bg-slate-100"
+          >
+            Load Categories
+          </button>
+          <button
+            onClick={addCategory}
+            className="px-4 py-2 rounded bg-slate-800 text-white text-sm hover:bg-slate-700"
+          >
+            + Add Category
+          </button>
+        </div>
       </div>
 
       {categories.length === 0 ? (
@@ -113,6 +141,13 @@ export default function Builder() {
         <QuestionSettingsModal
           onClose={() => setSettingsTarget(null)}
           onConfirm={confirmQuestions}
+        />
+      )}
+
+      {showLoad && (
+        <LoadCategoriesModal
+          onClose={() => setShowLoad(false)}
+          onLoad={appendLoaded}
         />
       )}
     </div>
